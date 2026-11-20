@@ -30,7 +30,7 @@ pub fn create_helper<R>(
     // path (causing issues when cleaning up temporary files.
     let mut base = base; // re-borrow to shrink lifetime
     let base_path_storage; // slot to store the absolute path, if necessary.
-    if !base.is_absolute() {
+    if !base.is_absolute() && !has_drive(base) {
         let cur_dir = std::env::current_dir()?;
         base_path_storage = cur_dir.join(base);
         base = &base_path_storage;
@@ -79,4 +79,16 @@ pub fn create_helper<R>(
         "too many temporary files exist",
     ))
     .with_err_path(|| base)
+}
+
+/// NeoSymbian: `C:\...` is absolute there, though Rust's unix `Path` only counts `/...`.
+#[cfg(target_os = "symbian")]
+fn has_drive(p: &Path) -> bool {
+    let b = p.as_os_str().as_encoded_bytes();
+    b.len() >= 2 && b[0].is_ascii_alphabetic() && b[1] == b':'
+}
+
+#[cfg(not(target_os = "symbian"))]
+fn has_drive(_: &Path) -> bool {
+    false
 }
